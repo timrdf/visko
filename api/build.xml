@@ -52,6 +52,12 @@
 				<fileset dir="${lib}/pellet-2.3.0/">
 					<include name="*.jar"/>
 				</fileset>
+				<fileset dir="${lib}/sesame/">
+					<include name="*.jar"/>
+				</fileset>
+				<fileset dir="${lib}/csv2rdf4lod/">
+					<include name="*.jar"/>
+				</fileset>
 			</classpath>   
 		</java>			
 	</target>
@@ -80,6 +86,12 @@
 					<include name="*.jar"/>
 				</fileset>
 				<fileset dir="${lib}/pellet-2.3.0/">
+					<include name="*.jar"/>
+				</fileset>
+				<fileset dir="${lib}/sesame/">
+					<include name="*.jar"/>
+				</fileset>
+				<fileset dir="${lib}/csv2rdf4lod/">
 					<include name="*.jar"/>
 				</fileset>
 			</classpath>			
