@@ -128,6 +128,12 @@
 				<fileset dir="${lib}/pellet-2.3.0/">
 					<include name="*.jar"/>
 				</fileset>	
+				<fileset dir="${lib}/sesame/">
+					<include name="*.jar"/>
+				</fileset>	
+				<fileset dir="${lib}/csv2rdf4lod/">
+					<include name="*.jar"/>
+				</fileset>	
 			</classpath>	
 	    	
 	      <fileset dir="${basedir}/src/" defaultexcludes="yes">

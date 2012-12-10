@@ -20,8 +20,6 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*
 
 import java.io.StringWriter;
 
-import edu.utep.trustlab.visko.util.FileUtils;
-
 import org.inference_web.pml.v2.pmlj.IWNodeSet;
 import org.inference_web.pml.v2.pmlj.IWQuery;
 import org.inference_web.pml.v2.pmlp.IWInformation;
@@ -30,12 +28,19 @@ import org.inference_web.pml.v2.vocabulary.PMLJ;
 import org.inference_web.pml.v2.vocabulary.PMLP;
 
 import edu.utep.trustlab.contentManagement.ContentManager;
+import edu.utep.trustlab.visko.util.FileUtils;
 
+/**
+ * 
+ */
 public class PMLQueryLogger {
 
-	private String queryName;
+	private String  queryName;
 	private IWQuery query;
 	
+	/**
+	 * 
+	 */
 	public PMLQueryLogger(){
 		String baseQueryName = "visko-query";
 		queryName = baseQueryName + "-" + FileUtils.getRandomFileName() + ".owl";
@@ -45,6 +50,10 @@ public class PMLQueryLogger {
 		query.setIdentifier(PMLObjectManager.getObjectID(url + "#" + "query"));
 	}
 	
+	/**
+	 * 
+	 * @return
+	 */
 	public String dumpPMLQuery(){
 		StringWriter rdfStringWriter = new StringWriter();
   		PMLObjectManager.getOntModel(query).write(rdfStringWriter, "RDF/XML-ABBREV");
@@ -55,14 +64,26 @@ public class PMLQueryLogger {
   		return query.getIdentifier().getURIString();
 	}
 	
+	/**
+	 * 
+	 * @param nodeset
+	 */
 	public void addAnswer(IWNodeSet nodeset){
 		query.addHasAnswer(nodeset);
 	}
 	
+	/**
+	 * 
+	 * @param nodesetURI
+	 */
 	public void addAnswer(String nodesetURI){
 		query.addHasAnswer(nodesetURI);
 	}
 	
+	/**
+	 * 
+	 * @param viskoQuery
+	 */
 	public void setViskoQuery(String viskoQuery){
 		// create Information instance as conclusion
   		IWInformation content = (IWInformation)PMLObjectManager.createPMLObject(PMLP.Information_lname);

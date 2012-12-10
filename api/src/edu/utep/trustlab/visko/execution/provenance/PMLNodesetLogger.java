@@ -21,11 +21,12 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*
 import java.io.StringWriter;
 import java.util.Vector;
 
-import org.inference_web.pml.v2.pmlj.*;
-import org.inference_web.pml.v2.pmlp.*;
-import org.inference_web.pml.v2.vocabulary.*;
+import org.inference_web.pml.v2.pmlj.IWInferenceStep;
 import org.inference_web.pml.v2.pmlj.IWNodeSet;
+import org.inference_web.pml.v2.pmlp.IWInformation;
 import org.inference_web.pml.v2.util.PMLObjectManager;
+import org.inference_web.pml.v2.vocabulary.PMLJ;
+import org.inference_web.pml.v2.vocabulary.PMLP;
 import org.mindswap.owl.OWLValue;
 import org.mindswap.owls.process.variable.Input;
 import org.mindswap.query.ValueMap;
@@ -36,17 +37,23 @@ import edu.utep.trustlab.visko.ontology.viskoOperator.Transformer;
 import edu.utep.trustlab.visko.ontology.viskoService.Service;
 import edu.utep.trustlab.visko.util.FileUtils;
 
+/**
+ * 
+ */
 public class PMLNodesetLogger {
 	
 	private Vector<IWNodeSet> serviceNodesets;
 	
 	private String url;
-	private String baseFileName = "visko-pipeline-provenance";
-	private String baseNodesetNameService = "pipeline-step";
+	private String baseFileName             = "visko-pipeline-provenance";
+	private String baseNodesetNameService   = "pipeline-step";
 	private String baseNodesetNameParameter = "parameter-assertion";
 	
 	private String fileName;
 		
+	/**
+	 * 
+	 */
 	public PMLNodesetLogger() {
 		serviceNodesets = new Vector<IWNodeSet>();
 		fileName = baseFileName + "-" + FileUtils.getRandomFileName() + ".owl";
@@ -54,18 +61,24 @@ public class PMLNodesetLogger {
 		url = baseURL + fileName;
 	}
 
-	public void captureInitialDataset(String inDatasetURL, Service ingestingService){
+	/**
+	 * 
+	 * @param inDatasetURL
+	 * @param ingestingService
+	 */
+	public void captureInitialDataset(String inDatasetURL, Service ingestingService) {
+		
 		IWInferenceStep is = (IWInferenceStep) PMLObjectManager.createPMLObject(PMLJ.InferenceStep_lname);
-		is.setHasInferenceRule(PMLResourceURI.RULE_DIRECT_ASSERTION);
+		is.setHasInferenceRule(  PMLResourceURI.RULE_DIRECT_ASSERTION);
 		is.setHasInferenceEngine(PMLResourceURI.ENGINE_VISKO_WEB_SERVICE);
 		
-		//set up conclusion
+		// Set up conclusion
 		IWInformation conclusion = (IWInformation) PMLObjectManager.createPMLObject(PMLP.Information_lname);
 		String formatURI = ingestingService.getConceptualOperator().getInputFormats().firstElement().getURI();
 		conclusion.setHasFormat(formatURI);
 		conclusion.setHasURL(inDatasetURL);
 		
-		//set up nodeset
+		// Set up nodeset
 		String nodesetNameService = baseNodesetNameService + "-" + FileUtils.getRandomFileName();
 		IWNodeSet ns = (IWNodeSet) PMLObjectManager.createPMLObject(PMLJ.NodeSet_lname);
 		ns.setIdentifier(PMLObjectManager.getObjectID(url + "#" + nodesetNameService));
@@ -75,22 +88,30 @@ public class PMLNodesetLogger {
 		serviceNodesets.add(ns);
 	}
 	
-	public void captureProcessingStep(Service service, String inDatasetURL, String outDatasetURL, ValueMap<Input, OWLValue> inputValueMap) {
-		//set up transformer
+	/**
+	 * 
+	 * @param service
+	 * @param inDatasetURL
+	 * @param outDatasetURL
+	 * @param inputValueMap
+	 */
+	public void captureProcessingStep(Service service, String inDatasetURL, String outDatasetURL, 
+									  ValueMap<Input, OWLValue> inputValueMap) {
+		// Set up transformer
 		Transformer transformer = new Transformer(service.getConceptualOperator().getURI(), new ViskoModel());
 		
-		//set up inference step
+		// Set up inference step
 		IWInferenceStep is = (IWInferenceStep) PMLObjectManager.createPMLObject(PMLJ.InferenceStep_lname);
 		is.setHasInferenceRule(service.getConceptualOperator().getURI());
 		is.setHasInferenceEngine(PMLResourceURI.ENGINE_VISKO_WEB_SERVICE);
 		
-		//set up conclusion
+		// Set up conclusion
 		IWInformation conclusion = (IWInformation) PMLObjectManager.createPMLObject(PMLP.Information_lname);
 		String formatURI = transformer.getOutputFormat().getURI();
 		conclusion.setHasFormat(formatURI);
 		setConclusionURL(conclusion, outDatasetURL);
 		
-		//set up nodeset
+		// Set up nodeset
 		String nodesetNameService = baseNodesetNameService + "-" + FileUtils.getRandomFileName();
 		IWNodeSet ns = (IWNodeSet) PMLObjectManager.createPMLObject(PMLJ.NodeSet_lname);
 		ns.setIdentifier(PMLObjectManager.getObjectID(url + "#" + nodesetNameService));
@@ -102,17 +123,17 @@ public class PMLNodesetLogger {
 			String valueString = value.toString();
 
 			if (!valueString.equals(inDatasetURL)) {				
-				//set up inference step
+				// Set up inference step
 				IWInferenceStep paramIS = (IWInferenceStep) PMLObjectManager.createPMLObject(PMLJ.InferenceStep_lname);
-				paramIS.setHasInferenceRule(PMLResourceURI.RULE_DIRECT_ASSERTION);
+				paramIS.setHasInferenceRule(  PMLResourceURI.RULE_DIRECT_ASSERTION);
 				paramIS.setHasInferenceEngine(PMLResourceURI.ENGINE_VISKO_PARAMETER_BINDER);
 				
-				//set up conclusion
+				// Set up conclusion
 				IWInformation paramConclusion = (IWInformation) PMLObjectManager.createPMLObject(PMLP.Information_lname);
 				paramConclusion.setHasFormat(PMLResourceURI.FORMAT_PLAIN_TEXT);
 				paramConclusion.setHasRawString(var.getURI() + " = " + valueString);
 				
-				//set up nodeset
+				// Set up nodeset
 				String nodesetNameParameter = baseNodesetNameParameter + "-" + FileUtils.getRandomFileName();
 				IWNodeSet paramNS = (IWNodeSet) PMLObjectManager.createPMLObject(PMLJ.NodeSet_lname);
 				paramNS.setIdentifier(PMLObjectManager.getObjectID(url + "#" + nodesetNameParameter));
@@ -125,17 +146,28 @@ public class PMLNodesetLogger {
 		serviceNodesets.add(ns);
 	}
 
-	private void setConclusionURL(IWInformation conclusion, String dataURL){
+	/**
+	 * 
+	 * @param conclusion
+	 * @param dataURL
+	 */
+	private void setConclusionURL(IWInformation conclusion, String dataURL) {
+		
 		ContentManager dataManager = ContentManager.getDataContentManager();
 		
 		String newURL = dataURL;
 		
-		if(dataManager != null)
+		if(dataManager != null) {
 			newURL = dataManager.saveDocument(dataURL);
+		}
 		
 		conclusion.setHasURL(newURL);
 	}
 	
+	/**
+	 * 
+	 * @return
+	 */
 	public String dumpTrace() {
 
 		linkUpSteps();
@@ -151,6 +183,9 @@ public class PMLNodesetLogger {
 		return rootNodeset.getIdentifier().getURIString();
 	}
 	
+	/**
+	 * 
+	 */
 	private void linkUpSteps(){
 		IWInferenceStep is;
 		for (int i = (serviceNodesets.size() - 1); i > 0; i--){

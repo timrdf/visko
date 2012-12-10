@@ -19,6 +19,9 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*
 
 package edu.utep.trustlab.visko.execution;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.util.ArrayList;
 
 import org.mindswap.exceptions.ExecutionException;
@@ -36,27 +39,38 @@ import org.mindswap.query.ValueMap;
 
 import edu.utep.trustlab.visko.execution.provenance.PMLNodesetLogger;
 import edu.utep.trustlab.visko.execution.provenance.PMLQueryLogger;
+import edu.utep.trustlab.visko.execution.provenance.PROVPipelineExecutionProvenanceLogger;
+import edu.utep.trustlab.visko.execution.provenance.PipelineExecutionProvenanceLogger;
 import edu.utep.trustlab.visko.util.OWLSParameterBinder;
 
+/**
+ * 
+ */
 public class PipelineExecutor implements Runnable {	
 
-    private PipelineExecutorJob job;
+    private PipelineExecutorJob    job;
 	private ProcessExecutionEngine exec;
     private Thread t;
     
+    // PML-2
     private PMLNodesetLogger traceLogger;
-   	private PMLQueryLogger queryLogger;
-    
-   	private ArrayList<PMLNodesetLogger> nodesetLoggers;
+   	private PMLQueryLogger   queryLogger;
+   	private ArrayList<PMLNodesetLogger> nodesetLoggers; // TODO: comment this.
    	
-    //use our own interrupt facility, since calling Thread.interrupt() leaves Jena in a crappy unusable state
+   	// PROV
+   	private PipelineExecutionProvenanceLogger provLogger = null;
+   	
+    // Use our own interrupt facility, since calling Thread.interrupt() leaves Jena
+   	// in a crappy unusable state.
     private boolean isScheduledForTermination;
     
 	public PipelineExecutor(PipelineExecutorJob pipelineJob) {
 		job = pipelineJob;
 				
-		if(job.getProvenanceLogging())
+		if(job.getProvenanceLogging()) {
 			traceLogger = new PMLNodesetLogger();
+			provLogger  = new PROVPipelineExecutionProvenanceLogger();
+		}
 
     	job.getJobStatus().setTotalServiceCount(job.getPipeline().size());
 	  	
@@ -70,7 +84,7 @@ public class PipelineExecutor implements Runnable {
 	private void init(){
 		nodesetLoggers = new ArrayList<PMLNodesetLogger>();
 		
-		//always keep query alive because jobs may or may not log provenance
+		// Always keep query alive because jobs may or may not log provenance
 		queryLogger = new PMLQueryLogger();
 		
 		exec = OWLSFactory.createExecutionEngine();	
@@ -80,8 +94,10 @@ public class PipelineExecutor implements Runnable {
 	public void setJob(PipelineExecutorJob pipelineJob) {
 		job = pipelineJob;
 				
-		if(job.getProvenanceLogging())
-			traceLogger = new PMLNodesetLogger();
+		if(job.getProvenanceLogging()) {
+			traceLogger = new PMLNodesetLogger(); // TODO: why is this done again after constructor?
+			provLogger  = new PROVPipelineExecutionProvenanceLogger();
+		}
 
     	job.getJobStatus().setTotalServiceCount(job.getPipeline().size());
 	}
@@ -110,25 +126,23 @@ public class PipelineExecutor implements Runnable {
 		}	
 	}
 	
-    public void run(){
-    	try{
-    	
-    		if(!job.getPipeline().hasInputData())
+	@Override
+    public void run() {
+    	try {
+    		if( !job.getPipeline().hasInputData() ) {
     			job.getJobStatus().setPipelineState(PipelineExecutorJobStatus.PipelineState.NODATA);
-    	
-    		else if(job.getPipeline().isEmpty())
+    		}else if( job.getPipeline().isEmpty() ) {
     			job.getJobStatus().setPipelineState(PipelineExecutorJobStatus.PipelineState.EMPTYPIPELINE);
-    	
-    		else{
+    		}else {
     			executePipeline();
     		
-    			if(job.getProvenanceLogging())
+    			if(job.getProvenanceLogging()) {
     				nodesetLoggers.add(traceLogger);
-
+    			}
+    			
     			job.getJobStatus().setPipelineState(PipelineExecutorJobStatus.PipelineState.COMPLETE);
     		}
-    	}
-    	catch(Exception e){
+    	}catch(Exception e) {
     		e.printStackTrace();
     		job.getJobStatus().setPipelineState(PipelineExecutorJobStatus.PipelineState.ERROR);
     	}
@@ -140,13 +154,15 @@ public class PipelineExecutor implements Runnable {
     	
     	System.out.println(job.getJobStatus());
     	    	
-    	for(int i = 0; i < job.getPipeline().size(); i ++){
+    	for( int i = 0; i < job.getPipeline().size(); i++) {
  
     		edu.utep.trustlab.visko.ontology.viskoService.Service viskoService = job.getPipeline().getService(i);
  
-        	//capture initial dataset
-            if(job.getProvenanceLogging() && i == 0)
+        	// Capture initial dataset
+            if( job.getProvenanceLogging() && i == 0 ) {
             	traceLogger.captureInitialDataset(resultURL, job.getPipeline().getService(i));
+            	provLogger.recordInitialDataset(resultURL, job.getPipeline().getService(i));
+            }
     		
        		job.getJobStatus().setCurrentService(viskoService.getOWLSService().getURI(), i);
     		System.out.println(job.getJobStatus());
@@ -163,25 +179,46 @@ public class PipelineExecutor implements Runnable {
     	job.setFinalResultURL(resultURL);
     }
     
-    public String dumpProvenance(){
+    public String dumpProvenance() {
 
     	queryLogger.setViskoQuery(job.getPipeline().getParentPipelineSet().getQuery().toString());
+    	provLogger.recordVisKoQuery(job.getPipeline().getParentPipelineSet().getQuery().toString());
 
-    	for(PMLNodesetLogger traceLogger : nodesetLoggers){	
-        	// add answer to query
+    	for( PMLNodesetLogger traceLogger : nodesetLoggers ) {	
+        	// Add answer to query
         	queryLogger.addAnswer(traceLogger.dumpTrace());		
     	}
+    	for ( int i=0; i < nodesetLoggers.size(); i++ ) {
+    		//provLogger.
+    	}
     	
-    	//dump query
+    	// Dump query
     	String pmlQueryURI = queryLogger.dumpPMLQuery();
     	
-    	//set URIs on Job
+    	// Set URIs on Job
     	job.setPMLQueryURI(pmlQueryURI);
     	
+    	// Hack to serialize PROV (need to coordinate with Nick on how get get ahold of the filename)
+    	try {
+			FileOutputStream fos = new FileOutputStream(new File("output-prov/out.ttl"), false);
+			provLogger.finish(fos);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
     	return pmlQueryURI;
     }
     
-    private String executeService(edu.utep.trustlab.visko.ontology.viskoService.Service viskoService, String inputDataURL, int serviceIndex) throws ExecutionException{		
+    /**
+     * 
+     * @param viskoService
+     * @param inputDataURL
+     * @param serviceIndex
+     * @return
+     * @throws ExecutionException
+     */
+    private String executeService(edu.utep.trustlab.visko.ontology.viskoService.Service viskoService, 
+    							  String inputDataURL, int serviceIndex) throws ExecutionException {		
+    	
 		OWLKnowledgeBase kb = OWLFactory.createKB();
 		Service service = viskoService.getOWLSService().getIndividual();
 		Process process = service.getProcess();
@@ -202,8 +239,10 @@ public class PipelineExecutor implements Runnable {
         		outputDataURL =  out.toString();
         	}
 
-	        if(job.getProvenanceLogging())
+	        if(job.getProvenanceLogging()) {
 	        	traceLogger.captureProcessingStep(viskoService, inputDataURL, outputDataURL, inputs);
+	        	provLogger.recordServiceInvocation(viskoService, inputDataURL, outputDataURL, inputs);
+	        }
 		}
 		return outputDataURL;
     }
