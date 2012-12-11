@@ -92,18 +92,24 @@ public class PROVPipelineExecutionProvenanceLogger implements PipelineExecutionP
 	
 	@Override
 	public void recordPipelineEnd(PipelineExecutorJob job) {
-
-		if( pipelineCount > 0 ) {
+		
+		boolean aPipelineWasStarted = pipelineCount > 0;
+		
+		if( aPipelineWasStarted ) {
 			System.err.println("END pipeline " + this.pipelineCount + " " + job);
-			try {
-				URI resultR = vf.createURI(job.getFinalResultURL());
-				conn.add(queryR,  PML3.hasAnswer,     resultR);
-				
-				conn.add(resultR, RDF.a,              DCAT.Dataset);
-				conn.add(resultR, RDF.a,              PROVO.Entity);
-				conn.add(resultR, RDF.a,              PROVO.Entity);
-			} catch (RepositoryException e) {
-				e.printStackTrace();
+			if ( job.getFinalResultURL() != null ) {
+				try {
+					URI resultR = vf.createURI(job.getFinalResultURL());
+					conn.add(queryR,  PML3.hasAnswer,     resultR);
+
+					conn.add(resultR, RDF.a,              DCAT.Dataset);
+					conn.add(resultR, RDF.a,              PROVO.Entity);
+					conn.add(resultR, RDF.a,              PROVO.Entity);
+				} catch (RepositoryException e) {
+					e.printStackTrace();
+				}
+			}else {
+				System.err.println("ERROR: job's finalResultURL is null.");
 			}
 		}
 	}

@@ -118,7 +118,7 @@ public class PipelineExecutor implements Runnable {
         	
             System.err.println("HUH 1.5; pipelineJob = " + pipelineJob);
             System.err.println("HUH 1.6; provLogger  = " + provLogger);
-            //provLogger.recordPipelineEnd(pipelineJob); // Finish the last one.
+            provLogger.recordPipelineEnd(pipelineJob); // Finish the last one.
         }
         
         System.err.println("HUH 2");
