@@ -109,35 +109,13 @@ public class PipelineExecutor implements Runnable {
      */
     public void setJob(PipelineExecutorJob pipelineJob) {
         
-        System.err.println("HUH 1; pipelineJob = " + pipelineJob);
-        
-        if( pipelineJob.getProvenanceLogging() ) {
-        	if( provLogger == null ) {
-        		provLogger = new PROVPipelineExecutionProvenanceLogger();
-        	}
-        	
-            System.err.println("HUH 1.5; pipelineJob = " + pipelineJob);
-            System.err.println("HUH 1.6; provLogger  = " + provLogger);
-            provLogger.recordPipelineEnd(pipelineJob); // Finish the last one.
-        }
-        
-        System.err.println("HUH 2");
-        
         job = pipelineJob;
         
-        System.err.println("HUH 3; log = " + job);
-        
         if( job.getProvenanceLogging() ) {
-            traceLogger = new PMLNodesetLogger(); // TODO: why is this not done in #run()?
-            System.err.println("HUH 3.5; provLogger = " + provLogger);
-            provLogger.recordPipelineStart(); // Start the new one.
+            traceLogger = new PMLNodesetLogger(); // TODO: why is this not done in #run(), right next to the array insertion?
         }
-
-        System.err.println("HUH 4");
         
         job.getJobStatus().setTotalServiceCount(job.getPipeline().size());
-        
-        System.err.println("HUH 5");
     }
     
     public PipelineExecutorJob getJob(){
@@ -186,41 +164,53 @@ public class PipelineExecutor implements Runnable {
         }
     }
    
-    private void executePipeline() throws ExecutionException {        
-        job.getJobStatus().setPipelineState(PipelineExecutorJobStatus.PipelineState.RUNNING);
-        String resultURL = job.getPipeline().getArtifactURL();
-        
-        System.out.println(job.getJobStatus());
-                
-        for( int i = 0; i < job.getPipeline().size(); i++) {
- 
-            edu.utep.trustlab.visko.ontology.viskoService.Service viskoService = job.getPipeline().getService(i);
- 
-            // Capture initial dataset
-            if( job.getProvenanceLogging() && i == 0 ) {
-                traceLogger.captureInitialDataset(resultURL, job.getPipeline().getService(i));
-                provLogger.recordInitialDataset(resultURL, job.getPipeline().getService(i));
-            }
-            
-               job.getJobStatus().setCurrentService(viskoService.getOWLSService().getURI(), i);
-            System.out.println(job.getJobStatus());
-            
-            resultURL = executeService(viskoService, resultURL, i);
-            
-            if(isScheduledForTermination){
-                System.out.println("This thread's execution was interrupted and will quit!");
-                job.getJobStatus().setPipelineState(PipelineExecutorJobStatus.PipelineState.INTERRUPTED);
-                break;
-            }
-        }
-        
+    private void executePipeline() throws ExecutionException {     
+
+    	if( job.getProvenanceLogging() ) {
+    		if( provLogger == null ) {
+    			provLogger = new PROVPipelineExecutionProvenanceLogger();
+    		}
+            provLogger.recordVisKoQuery(job.getPipeline().getParentPipelineSet().getQuery().toString());
+    		provLogger.recordPipelineStart();
+    	}
+
+    	job.getJobStatus().setPipelineState(PipelineExecutorJobStatus.PipelineState.RUNNING);
+    	String resultURL = job.getPipeline().getArtifactURL();
+
+    	System.out.println(job.getJobStatus());
+
+    	for( int i = 0; i < job.getPipeline().size(); i++) {
+
+    		edu.utep.trustlab.visko.ontology.viskoService.Service viskoService = job.getPipeline().getService(i);
+
+    		// Capture initial dataset
+    		if( job.getProvenanceLogging() && i == 0 ) {
+    			traceLogger.captureInitialDataset(resultURL, job.getPipeline().getService(i));
+    			provLogger.recordInitialDataset(resultURL, job.getPipeline().getService(i));
+    		}
+
+    		job.getJobStatus().setCurrentService(viskoService.getOWLSService().getURI(), i);
+    		System.out.println(job.getJobStatus());
+
+    		resultURL = executeService(viskoService, resultURL, i);
+
+    		if(isScheduledForTermination){
+    			System.out.println("This thread's execution was interrupted and will quit!");
+    			job.getJobStatus().setPipelineState(PipelineExecutorJobStatus.PipelineState.INTERRUPTED);
+    			break;
+    		}
+    	}
+
         job.setFinalResultURL(resultURL);
+        
+    	if( job.getProvenanceLogging() ) {
+            provLogger.recordPipelineEnd(job);
+    	}
     }
     
     public String dumpProvenance() {
 
         queryLogger.setViskoQuery(job.getPipeline().getParentPipelineSet().getQuery().toString());
-        provLogger.recordVisKoQuery(job.getPipeline().getParentPipelineSet().getQuery().toString());
 
         for( PMLNodesetLogger traceLogger : nodesetLoggers ) {    
             // Add answer to query

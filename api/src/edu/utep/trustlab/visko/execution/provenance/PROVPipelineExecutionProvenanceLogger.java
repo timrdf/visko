@@ -5,6 +5,7 @@ import java.io.OutputStream;
 import org.mindswap.owl.OWLValue;
 import org.mindswap.owls.process.variable.Input;
 import org.mindswap.query.ValueMap;
+import org.openrdf.model.Resource;
 import org.openrdf.model.URI;
 import org.openrdf.model.ValueFactory;
 import org.openrdf.model.impl.ValueFactoryImpl;
@@ -93,24 +94,20 @@ public class PROVPipelineExecutionProvenanceLogger implements PipelineExecutionP
 	@Override
 	public void recordPipelineEnd(PipelineExecutorJob job) {
 		
-		boolean aPipelineWasStarted = pipelineCount > 0;
-		
-		if( aPipelineWasStarted ) {
-			System.err.println("END pipeline " + this.pipelineCount + " " + job);
-			if ( job.getFinalResultURL() != null ) {
-				try {
-					URI resultR = vf.createURI(job.getFinalResultURL());
-					conn.add(queryR,  PML3.hasAnswer,     resultR);
+		System.err.println("END pipeline " + this.pipelineCount + " " + job + " " + job.getFinalResultURL() + " query= " + queryR);
+		if ( job.getFinalResultURL() != null ) {
+			try {
+				Resource resultR = vf.createURI(job.getFinalResultURL());
+				conn.add(queryR,  PML3.hasAnswer,     resultR);
 
-					conn.add(resultR, RDF.a,              DCAT.Dataset);
-					conn.add(resultR, RDF.a,              PROVO.Entity);
-					conn.add(resultR, RDF.a,              PROVO.Entity);
-				} catch (RepositoryException e) {
-					e.printStackTrace();
-				}
-			}else {
-				System.err.println("ERROR: job's finalResultURL is null.");
+				conn.add(resultR, RDF.a,              DCAT.Dataset);
+				conn.add(resultR, RDF.a,              PROVO.Entity);
+				conn.add(resultR, RDF.a,              PROVO.Entity);
+			} catch (RepositoryException e) {
+				e.printStackTrace();
 			}
+		}else {
+			System.err.println("ERROR: job's finalResultURL is null.");
 		}
 	}
 	
