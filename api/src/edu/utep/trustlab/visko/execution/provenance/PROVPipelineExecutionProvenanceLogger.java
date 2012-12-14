@@ -16,6 +16,7 @@ import org.openrdf.repository.sail.SailRepository;
 import org.openrdf.rio.RDFHandlerException;
 import org.openrdf.sail.memory.MemoryStore;
 
+import edu.rpi.tw.data.csv.valuehandlers.ResourceValueHandler;
 import edu.rpi.tw.data.rdf.sesame.vocabulary.DCAT;
 import edu.rpi.tw.data.rdf.sesame.vocabulary.DCTerms;
 import edu.rpi.tw.data.rdf.sesame.vocabulary.HartigPROV;
@@ -45,6 +46,7 @@ public class PROVPipelineExecutionProvenanceLogger implements PipelineExecutionP
 	// The VisKo query that could lead to one or more pipelines
 	// (which each produce a visualization dataset)
 	private URI queryR              = null;
+	private URI invocationR         = null;
 	
 	private URI pipelineR           = null;
 	private int pipelineCount       = 0;
@@ -53,6 +55,7 @@ public class PROVPipelineExecutionProvenanceLogger implements PipelineExecutionP
 	private URI initialDatasetR     = null;
 	private URI initialServiceR     = null;
 	private URI initialServiceCallR = null;
+	private int callCount           = 0;
 	
 	/**
 	 * 
@@ -72,6 +75,7 @@ public class PROVPipelineExecutionProvenanceLogger implements PipelineExecutionP
 	 */
 	@Override
 	public void recordVisKoQuery(String query) {
+		
 		String hash = NameFactory.getMD5(query);
 		this.queryR = vf.createURI(base+"query/"+hash);
 		try {
@@ -82,33 +86,19 @@ public class PROVPipelineExecutionProvenanceLogger implements PipelineExecutionP
 		} catch (RepositoryException e) {
 			e.printStackTrace();
 		}
+		this.invocationR = vf.createURI(queryR.stringValue() +"/submission/"+ NameFactory.getUUIDName());
+		System.err.println("RECORD: query");
 	}
 	
 	
 	@Override
 	public void recordPipelineStart() {
-		pipelineCount++;
-		System.err.println("START pipeline " + this.pipelineCount);
-	}
-	
-	@Override
-	public void recordPipelineEnd(PipelineExecutorJob job) {
-		
-		System.err.println("END pipeline " + this.pipelineCount + " " + job + " " + job.getFinalResultURL() + " query= " + queryR);
-		if ( job.getFinalResultURL() != null ) {
-			try {
-				Resource resultR = vf.createURI(job.getFinalResultURL());
-				conn.add(queryR,  PML3.hasAnswer,     resultR);
 
-				conn.add(resultR, RDF.a,              DCAT.Dataset);
-				conn.add(resultR, RDF.a,              PROVO.Entity);
-				conn.add(resultR, RDF.a,              PROVO.Entity);
-			} catch (RepositoryException e) {
-				e.printStackTrace();
-			}
-		}else {
-			System.err.println("ERROR: job's finalResultURL is null.");
-		}
+		pipelineCount++;
+		pipelineR = vf.createURI(invocationR.stringValue() + "/pipeline/" + pipelineCount);
+		
+		System.err.println("START pipeline " + this.pipelineCount);
+		System.err.println("RECORD: start pipeline "+pipelineR.stringValue());
 	}
 	
 	/**
@@ -118,10 +108,12 @@ public class PROVPipelineExecutionProvenanceLogger implements PipelineExecutionP
 	public void recordInitialDataset(String datasetURL, Service initialService) {
 		this.initialDatasetR     = vf.createURI(datasetURL);
 		this.initialServiceR     = vf.createURI(initialService.getURI());
-		this.initialServiceCallR = vf.createURI(base+
-												NameFactory.getMD5(datasetURL)+"/to/"+
-												NameFactory.getMD5(initialService.getURI())+"/at/"+
-												NameFactory.getMillisecond(""));
+//		this.initialServiceCallR = vf.createURI(base+
+//												NameFactory.getMD5(datasetURL)+"/to/"+
+//												NameFactory.getMD5(initialService.getURI())+"/at/"+
+//												NameFactory.getMillisecond(""));
+		this.initialServiceCallR = vf.createURI(pipelineR.stringValue()+"/call/"+pipelineCount);
+		System.err.println("RECORD: call " + initialServiceCallR.stringValue());
 		try {
 			conn.add(initialDatasetR, a, DCAT.Dataset);
 			conn.add(initialDatasetR, a, PROVO.Entity);
@@ -144,12 +136,10 @@ public class PROVPipelineExecutionProvenanceLogger implements PipelineExecutionP
 		URI serviceR    = vf.createURI(service.getURI());
 		URI inDatasetR  = vf.createURI(inDatasetURL);
 		URI outDatasetR = vf.createURI(outDatasetURL);
+		callCount++;
+		URI serviceCallR = vf.createURI(pipelineR.stringValue()+"/call/"+callCount);
+		System.err.println("RECORD: call " + serviceCallR.stringValue());
 		
-		URI serviceCallR = vf.createURI(base+
-				NameFactory.getMD5(inDatasetURL)+"/to/"+
-				NameFactory.getMD5(service.getURI())+"/at/"+
-				NameFactory.getMillisecond(""));
-
 		try {			
 			conn.add(inDatasetR, a, DCAT.Dataset);
 			conn.add(inDatasetR, a, PROVO.Entity);
@@ -160,26 +150,32 @@ public class PROVPipelineExecutionProvenanceLogger implements PipelineExecutionP
 			conn.add(serviceCallR, a,                       PROVO.Activity);
 			conn.add(serviceCallR, a,                       HartigPROV.DataCreation);
 			conn.add(serviceCallR, PROVO.wasAssociatedWith, serviceR);
+			//conn.add(serviceCallR, PROVO.generated,         outDatasetR);
 
+			// List all of the attribute-values that were given to the service.
 			for( Input var : inputValueMap.getVariables() ) {
-				OWLValue value = inputValueMap.getValue(var);
-				String valueString = value.toString();
+				
 				URI attr = vf.createURI(serviceCallR.stringValue()+"/"+var.getLocalName());
 				conn.add(serviceCallR,  PROVO.used, attr);
 			}
 			for( Input var : inputValueMap.getVariables() ) {
-				OWLValue value = inputValueMap.getValue(var);
-				String valueString = value.toString();
 				
-				URI attr = vf.createURI(serviceCallR.stringValue()+"/"+var.getLocalName());
-				System.err.println("     "+var+"    " + valueString);
-				conn.add(attr, a,                      PROVO.Entity);
-				conn.add(attr, PROVO.specializationOf, vf.createURI(var.getURI().toString()));
-				conn.add(attr, PROVO.value,            vf.createLiteral(valueString));
+				URI    parameter = vf.createURI(serviceCallR.stringValue()+"/"+var.getLocalName());
+				String value     = inputValueMap.getValue(var).toString();
+				System.err.println("     "+var.getLocalName()+"    " + value);
+				
+				conn.add(parameter, a, PROVO.Entity);
+				conn.add(parameter, PROVO.specializationOf, vf.createURI(var.getURI().toString()));
+				if( ResourceValueHandler.isURI(value) ) {
+					conn.add(parameter, PROVO.value, vf.createURI(value));
+				}else {
+					conn.add(parameter, PROVO.value, vf.createLiteral(value));
+				}
 			}
 			
 			conn.add(outDatasetR, a,                     DCAT.Dataset);
 			conn.add(outDatasetR, a,                     PROVO.Entity);
+			conn.add(outDatasetR, PROVO.wasGeneratedBy,  serviceCallR);
 			conn.add(outDatasetR, PROVO.wasDerivedFrom,  inDatasetR);
 			conn.add(outDatasetR, PROVO.wasAttributedTo, serviceR);
 			conn.add(outDatasetR, DCTerms.format,        vf.createURI(
@@ -195,6 +191,26 @@ public class PROVPipelineExecutionProvenanceLogger implements PipelineExecutionP
 		}
 	}
 
+	
+	@Override
+	public void recordPipelineEnd(PipelineExecutorJob job) {
+		
+		System.err.println("END pipeline " + this.pipelineCount + " " + job + " " + job.getFinalResultURL() + " query= " + queryR);
+		if ( job.getFinalResultURL() != null ) {
+			try {
+				Resource resultR = vf.createURI(job.getFinalResultURL());
+				conn.add(queryR,  PML3.hasAnswer,     resultR);
+
+				conn.add(resultR, RDF.a,              DCAT.Dataset);
+				conn.add(resultR, RDF.a,              PROVO.Entity);
+			} catch (RepositoryException e) {
+				e.printStackTrace();
+			}
+		}else {
+			System.err.println("ERROR: job's finalResultURL is null.");
+		}
+	}
+	
 	@Override
 	public void finish(OutputStream out) {
 		try {

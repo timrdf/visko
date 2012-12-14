@@ -62,7 +62,7 @@ public class PipelineExecutor implements Runnable {
      * As new Jobs are provided with {@link #setJob(PipelineExecutorJob)}, the previous jobs
      * are stored in this collection.
      */
-    private ArrayList<PMLNodesetLogger> nodesetLoggers; // TODO: comment this.
+    private ArrayList<PMLNodesetLogger> nodesetLoggers;
 
     /*
      * This logger is used to log the provenance of all Jobs using PROV-O.

@@ -118,7 +118,7 @@ public class PMLNodesetLogger {
 		ns.setHasConclusion(conclusion);
 		ns.addIsConsequentOf(is);
 		
-		for (Input var : inputValueMap.getVariables()) {			
+		for (Input var : inputValueMap.getVariables()) {
 			OWLValue value = inputValueMap.getValue(var);
 			String valueString = value.toString();
 

@@ -32,12 +32,6 @@ public interface PipelineExecutionProvenanceLogger {
 	
 	/**
 	 * 
-	 * @param job
-	 */
-	public abstract void recordPipelineEnd(PipelineExecutorJob job);
-	
-	/**
-	 * 
 	 * @param inDatasetURL
 	 * @param ingestingService
 	 */
@@ -53,9 +47,14 @@ public interface PipelineExecutionProvenanceLogger {
 	public abstract void recordServiceInvocation(Service service, String inDatasetURL,
 												 String outDatasetURL, 
 												 ValueMap<Input, OWLValue> inputValueMap);
+	/**
+	 * 
+	 * @param job
+	 */
+	public abstract void recordPipelineEnd(PipelineExecutorJob job);
 	
 	/**
-	 * Called when no more provenance is to be recorded for the current pipeline.
+	 * Called when no more provenance is to be recorded for any other pipeline.
 	 * 
 	 * @param out - the stream to write the provenance to.
 	 */
