@@ -24,3 +24,7 @@ for owl in `find output -name "*.owl"`; do rapper -q -g -o turtle $owl > $owl.tt
 for rdf in `find output -name "*.ttl"`; do dir=`dirname $rdf`; base=file://`pwd`/$dir/; perl -pi -e "s|$base||g" $rdf; done
 
 say done
+
+
+# cat visko-* > pml.ttl; rapper -g -o rdfxml pml.ttl > pml.ttl.rdf; vsr2grf.sh rdf graffle -w pml.ttl.rdf
+# rapper -g -o rdfxml prov.ttl > prov.ttl.rdf; vsr2grf.sh rdf graffle -w prov.ttl.rdf
